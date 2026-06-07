@@ -14,7 +14,7 @@ Usage:
     # 2b. or run BOTH side by side (the differentiator test)
     tokenfit eval --repo ../some-repo --compare
 
-Output: tokenfit/eval/results/<timestamp>.md  (a human-graded comparison sheet)
+Output: ./tokenfit-results/<timestamp>.md  (a human-graded comparison sheet)
 """
 
 from __future__ import annotations
@@ -30,7 +30,8 @@ from tokenfit.models import TokenfitModel
 
 HERE = Path(__file__).parent
 DEFAULT_QUESTIONS = HERE / "dataset" / "questions.yaml"
-RESULTS_DIR = HERE / "results"
+# Write results into the user's working directory, not the installed package dir.
+RESULTS_DIR = Path.cwd() / "tokenfit-results"
 
 SYSTEM_PROMPT = (
     "You are a coding assistant for THIS project. Use ONLY the provided project "

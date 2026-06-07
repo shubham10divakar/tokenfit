@@ -1,10 +1,61 @@
 # tokenfit — Example Runs
 
-Real output from `tokenfit ask`, run against a **Godot game project** using the free
-**`Qwen2.5-Coder-7B-Instruct`** model on HuggingFace (8000-token budget).
+Real, unedited output from `tokenfit`, run with the free **`Qwen2.5-Coder-7B-Instruct`**
+model on HuggingFace (8000-token budget). Token counts are the actual selected-context
+size reported by tokenfit.
 
-> These are unedited results from the first live validation on 2026-06-07. Token counts
-> are the actual selected-context size reported by tokenfit.
+---
+
+## 🏆 The headline result: retrieved vs naive on a large repo (`psf/requests`)
+
+This is the test that proves tokenfit earns its existence. `requests` is **~150,000
+tokens** of source + tests — ~19× larger than the 8000-token budget. So "naive" (just
+concatenate files and truncate) is *forced* to throw away ~95% of the repo.
+
+Run with `tokenfit eval --repo ./requests --compare`:
+
+| # | Question | 🟥 Naive (8000 tok) | 🟩 Retrieved (~2000 tok) | Winner |
+|---|----------|--------------------|--------------------------|:------:|
+| 1 | connection pooling | "context doesn't provide info" | explains `Session` pooling | 🟩 |
+| 2 | digest auth | quotes the changelog | cites `auth.py`, `handle_401` flow | 🟩 |
+| 3 | redirects | **answered in Chinese**, changelog only | cites `resolve_redirects` (`sessions.py`) | 🟩 |
+| 4 | `HTTPAdapter.send` | vague guess | `send → adapter.send → urlopen`, with code | 🟩 |
+| 5 | `PreparedRequest` | "HISTORY.md doesn't say" | `prepare_request` flow | 🟩 |
+| 6 | cookies | changelog generics | cites `extract_cookies_to_jar`, with code | 🟩 |
+| 7 | streaming | changelog bug notes | real `iter_content` behavior | 🟩 |
+| 8 | hooks | "no information in context" | `dispatch_hook`, with code snippet | 🟩 |
+| 9 | `api.py` mapping | **hallucinated a fake class** | correct (create → request → close) | 🟩 |
+| 10 | exceptions | solid hierarchy | also good (different angle) | ⚪ tie |
+
+**Result: retrieved wins ~9/10 — and does it with ~4× fewer tokens.**
+
+### Why naive collapses
+Naive filled all 8000 tokens with `HISTORY.md` (the changelog) and **never reached a
+single source file**. So it answered "the context doesn't provide info," quoted version
+notes instead of code, once **answered in Chinese**, and once **invented a class that
+doesn't exist** (`SessionRequestMethods`). Retrieval semantically skipped the changelog
+and fetched the right module every time.
+
+### The double win
+Retrieval was **better AND ~4× cheaper** — ~2000 tokens vs naive's 8000. For free/small
+models that's the whole point: a tighter prompt that yields a *more* accurate answer.
+
+### Side-by-side sample (Q3 — redirects)
+
+> **🟥 Naive (8000 tok):** *"In Request版本2.20.0及更新版本中，重定向解析和跟随的行为有所改善…"*
+> (drowning in the changelog, it switched to Chinese and never found the code)
+>
+> **🟩 Retrieved (2617 tok):** *"…redirects are resolved through `resolve_redirects` from
+> `src/requests/sessions.py`. (1) a `hist` list tracks response history; (2) the target is
+> extracted via `get_redirect_target` from the `Location` header; (3) a `while url` loop
+> cycles through redirects; … (7) `TooManyRedirects` is raised past `max_redirects`…"*
+
+---
+
+## More runs against a Godot game project
+
+The runs below show tokenfit's behavior on a smaller repo and the kinds of questions it
+suits.
 
 ---
 

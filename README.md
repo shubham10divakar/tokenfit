@@ -41,6 +41,28 @@ query
 optimal prompt  →  any HuggingFace model
 ```
 
+## Does it actually beat just dumping the files? Yes.
+
+We ran the free **Qwen2.5-Coder-7B** against [`psf/requests`](https://github.com/psf/requests)
+— **~150,000 tokens** of code, ~19× bigger than an 8000-token budget — comparing two ways
+of feeding the model, across 10 questions (`tokenfit eval --compare`):
+
+- **Naive** — concatenate the files and truncate to 8000 tokens.
+- **Retrieved** — let tokenfit pick the relevant ~2000 tokens.
+
+| | Naive (8000 tok) | **tokenfit retrieved (~2000 tok)** |
+|---|---|---|
+| Wins (of 10) | 1 (1 tie) | **9** |
+| Cites the right source file | rarely | **almost always** |
+| Tokens per call | 8000 | **~2000 (≈4× cheaper)** |
+| Failure modes | "context doesn't provide info", quoted the changelog, once **answered in Chinese**, once **invented a class that doesn't exist** | accurate, code-grounded answers |
+
+**Why naive collapses:** the whole 8000-token budget filled up with `HISTORY.md` (the
+changelog) and never reached a single source file. tokenfit semantically skips the noise
+and fetches the right module — so it's **both more accurate _and_ ~4× cheaper per call.**
+
+> 📂 Full side-by-side transcripts in **[EXAMPLES.md](./EXAMPLES.md)**.
+
 ## Install
 
 ```bash

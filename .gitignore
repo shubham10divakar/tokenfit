@@ -9,7 +9,8 @@ dist/
 venv/
 
 # tokenfit
-tokenfit/eval/results/      # generated eval sheets
+tokenfit/eval/results/      # legacy results location
+tokenfit-results/           # generated eval sheets (CWD)
 .cache/
 
 # OS / editor

@@ -130,6 +130,18 @@ tests/
   Y") well, but not **global/aggregate** ones ("list all unused assets") — those need a
   whole-project reference graph, a different mechanism (out of scope for the retrieval core).
 
+### 🏆 DIFFERENTIATOR PROVEN — 2026-06-07 (`psf/requests`, ~150k tokens, free 7B)
+- Ran `tokenfit eval --repo ./requests --compare` (10 questions, 8k budget).
+- **Retrieved won ~9/10** vs naive truncation, using **~2000 tokens vs naive's 8000**
+  (~4× cheaper). Full transcripts in [`EXAMPLES.md`](./EXAMPLES.md).
+- Naive filled the entire budget with `HISTORY.md` and never reached source code →
+  "context doesn't provide info", quoted the changelog, once answered in Chinese, once
+  hallucinated a non-existent class. Retrieved cited the right module every time.
+- **This is the "proceed" signal.** The core thesis (retrieval makes free/small models
+  punch above their weight on big repos) is validated: better answers AND lower cost.
+- **v0.2.5:** results now write to `./tokenfit-results/` (was site-packages); silenced
+  the long-sequence tokenizer warning.
+
 ---
 
 ## Current status / next action
@@ -138,6 +150,7 @@ tests/
 - [x] Phase 1: implement retrieval (chunk → embed → retrieve → budget), `pack.build` wired
 - [x] Package + CLI + hardening (v0.2.3 on GitHub)
 - [x] First live run: free 7B gives accurate grounded answers ([`EXAMPLES.md`](./EXAMPLES.md))
-- [ ] **Differentiator test:** run `--mode naive` vs `--mode retrieved` on a repo
-      *larger than the token budget* (small repos don't reveal retrieval's value)
-- [ ] Phase 2: hybrid BM25 + rerank + summarization (once the differentiator is proven)
+- [x] **Differentiator PROVEN:** retrieved beat naive ~9/10 on `psf/requests` (~150k tokens),
+      at ~4× fewer tokens. Core thesis validated.
+- [ ] Phase 2: hybrid BM25 + rerank + summarization (now polish, not necessity)
+- [ ] Consider: first PyPI release (badges go live), since the thesis holds

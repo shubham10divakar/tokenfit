@@ -30,7 +30,11 @@ def _tokenizer(model: str):
     try:
         from transformers import AutoTokenizer
 
-        return AutoTokenizer.from_pretrained(model)
+        tok = AutoTokenizer.from_pretrained(model)
+        # We count tokens on whole-repo blobs (for the naive baseline); raise the
+        # cap so transformers doesn't warn about sequences over the model length.
+        tok.model_max_length = int(1e9)
+        return tok
     except Exception:  # pragma: no cover - offline / no transformers
         return None
 
