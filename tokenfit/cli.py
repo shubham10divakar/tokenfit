@@ -15,6 +15,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from tokenfit import __version__
+
 # Duplicated as a literal (not imported from .models) to keep --help dependency-free.
 DEFAULT_MODEL = "Qwen/Qwen2.5-Coder-7B-Instruct"
 
@@ -143,6 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="tokenfit",
         description="Fit your whole repo into a small model's token window.",
     )
+    p.add_argument("--version", action="version", version=f"tokenfit {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
     ask = sub.add_parser("ask", help="retrieve context AND get a model answer")
