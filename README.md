@@ -52,6 +52,13 @@ export HF_TOKEN=hf_your_token_here      # bash
 $env:HF_TOKEN = "hf_your_token_here"    # PowerShell
 ```
 
+Verify it before you run anything:
+
+```bash
+tokenfit auth            # checks the token is set and valid
+tokenfit auth --ping     # also makes a 1-token call to confirm inference access
+```
+
 ## Quickstart (CLI)
 
 The fastest way — no Python required:

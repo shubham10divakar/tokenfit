@@ -75,6 +75,50 @@ def cmd_eval(args: argparse.Namespace) -> None:
     run(args.repo, args.mode, args.budget, args.model, questions)
 
 
+def cmd_auth(args: argparse.Namespace) -> None:
+    """Check that a HuggingFace token is set and valid before running `ask`/`eval`."""
+    import os
+
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACEHUB_API_TOKEN")
+    if not token:
+        _status("no token found in HF_TOKEN or HUGGINGFACEHUB_API_TOKEN")
+        _status("get one at https://huggingface.co/settings/tokens "
+                '(enable "Make calls to Inference Providers")')
+        _status('then:  $env:HF_TOKEN = "hf_..."')
+        sys.exit(1)
+
+    src = "HF_TOKEN" if os.environ.get("HF_TOKEN") else "HUGGINGFACEHUB_API_TOKEN"
+    masked = f"{token[:6]}…{token[-4:]}" if len(token) > 12 else "set"
+    _status(f"token found in {src} ({masked})")
+
+    from huggingface_hub import HfApi
+
+    try:
+        info = HfApi().whoami(token=token)
+    except Exception as e:  # invalid / revoked / network
+        _status(f"token is INVALID or could not be verified: {e}")
+        sys.exit(1)
+
+    name = info.get("fullname") or info.get("name") or "unknown"
+    role = (info.get("auth", {}).get("accessToken", {}).get("role")) or "unknown"
+    print(f"authenticated as: {name} (token role: {role})")
+
+    if not args.ping:
+        _status("identity OK. Re-run with --ping to verify inference access.")
+        return
+
+    _status(f"pinging inference on {args.model} ...")
+    from tokenfit.models import TokenfitModel
+
+    try:
+        TokenfitModel(model=args.model).chat("ping", "Reply with: ok", max_new_tokens=1)
+    except Exception as e:
+        _status(f"inference FAILED on {args.model}: {e}")
+        _status('token likely lacks the "Make calls to Inference Providers" permission.')
+        sys.exit(1)
+    print(f"inference OK on {args.model}")
+
+
 # --- parser ---------------------------------------------------------------
 def _add_retrieval_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--repo", default=".", help="project root (default: current dir)")
@@ -115,6 +159,12 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--model", default=DEFAULT_MODEL)
     ev.add_argument("--questions", default=None, help="path to a questions.yaml")
     ev.set_defaults(func=cmd_eval)
+
+    au = sub.add_parser("auth", help="check that your HuggingFace token is set and valid")
+    au.add_argument("--ping", action="store_true",
+                    help="also make a 1-token inference call to verify inference access")
+    au.add_argument("--model", default=DEFAULT_MODEL, help="model to ping with --ping")
+    au.set_defaults(func=cmd_auth)
 
     return p
 
