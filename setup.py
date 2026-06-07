@@ -13,7 +13,7 @@ LONG_DESCRIPTION = (ROOT / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="tokenfit",
-    version="0.2.5",
+    version="1.0.0",
     description="Fit your whole repo into any small model's token window — "
     "context selection for free/small LLMs.",
     long_description=LONG_DESCRIPTION,
@@ -21,6 +21,11 @@ setup(
     author="Shubham Divakar",
     author_email="shubham.divakar@gmail.com",
     url="https://github.com/shubham10divakar/tokenfit",
+    project_urls={
+        "Source": "https://github.com/shubham10divakar/tokenfit",
+        "Issues": "https://github.com/shubham10divakar/tokenfit/issues",
+        "Examples": "https://github.com/shubham10divakar/tokenfit/blob/main/EXAMPLES.md",
+    },
     license="MIT",
     packages=find_packages(include=["tokenfit", "tokenfit.*"]),
     include_package_data=True,
@@ -47,9 +52,14 @@ setup(
     },
     keywords=["llm", "rag", "context", "huggingface", "coding-agent", "retrieval"],
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
+        "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
