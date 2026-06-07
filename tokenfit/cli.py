@@ -30,6 +30,14 @@ def _status(msg: str) -> None:
     print(f"[tokenfit] {msg}", file=sys.stderr)
 
 
+def _globs(args: argparse.Namespace) -> tuple[str, ...]:
+    """Default file types plus any --include patterns (union, de-duped)."""
+    from tokenfit.ingest import DEFAULT_GLOBS
+
+    inc = tuple(getattr(args, "include", None) or ())
+    return tuple(dict.fromkeys(DEFAULT_GLOBS + inc)) if inc else DEFAULT_GLOBS
+
+
 # --- commands -------------------------------------------------------------
 def cmd_context(args: argparse.Namespace) -> None:
     from tokenfit import pack
@@ -38,7 +46,7 @@ def cmd_context(args: argparse.Namespace) -> None:
     model = TokenfitModel(model=args.model)
     ctx = pack.build(
         args.query, repo=args.repo, budget=args.budget,
-        model=model, top_k=args.top_k, rebuild=args.rebuild,
+        model=model, top_k=args.top_k, rebuild=args.rebuild, globs=_globs(args),
     )
     _status(f"{model.count_tokens(ctx)} tokens selected from {args.repo}")
     print(ctx)
@@ -52,7 +60,7 @@ def cmd_ask(args: argparse.Namespace) -> None:
     _status(f"building context (budget {args.budget}) from {args.repo} ...")
     ctx = pack.build(
         args.query, repo=args.repo, budget=args.budget,
-        model=model, top_k=args.top_k, rebuild=args.rebuild,
+        model=model, top_k=args.top_k, rebuild=args.rebuild, globs=_globs(args),
     )
     _status(f"{model.count_tokens(ctx)} ctx tokens; asking {args.model} ...")
     user = f"PROJECT CONTEXT:\n{ctx}\n\n---\n\nQUESTION: {args.query}"
@@ -63,7 +71,7 @@ def cmd_index(args: argparse.Namespace) -> None:
     from tokenfit import index as _index
     from tokenfit import pack
 
-    persist = pack.ensure_index(args.repo, rebuild=args.rebuild)
+    persist = pack.ensure_index(args.repo, rebuild=args.rebuild, globs=_globs(args))
     _, chunks = _index.load_index(persist)
     _status(f"index ready ({len(chunks)} chunks) at {persist}")
 
@@ -126,6 +134,8 @@ def _add_retrieval_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--top-k", type=int, default=12, dest="top_k", help="chunks to retrieve")
     sp.add_argument("--model", default=DEFAULT_MODEL, help="HuggingFace model id")
     sp.add_argument("--rebuild", action="store_true", help="force re-index before running")
+    sp.add_argument("--include", nargs="+", metavar="GLOB",
+                    help="extra file globs to index, e.g. --include '*.gd' '*.cs'")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -150,6 +160,8 @@ def build_parser() -> argparse.ArgumentParser:
     idx = sub.add_parser("index", help="build or refresh the index for a repo")
     idx.add_argument("--repo", default=".", help="project root (default: current dir)")
     idx.add_argument("--rebuild", action="store_true", help="force a full rebuild")
+    idx.add_argument("--include", nargs="+", metavar="GLOB",
+                     help="extra file globs to index, e.g. --include '*.gd' '*.cs'")
     idx.set_defaults(func=cmd_index)
 
     ev = sub.add_parser("eval", help="run the naive-vs-retrieved eval harness")
@@ -170,6 +182,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    import os
+
+    # Quiet the noisy Windows symlink advisory from huggingface_hub downloads.
+    os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
     args = build_parser().parse_args(argv)
     try:
         args.func(args)

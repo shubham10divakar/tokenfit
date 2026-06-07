@@ -6,4 +6,4 @@ optimal token-budgeted context to feed a small HuggingFace model.
 See plan.md for the phased roadmap.
 """
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"

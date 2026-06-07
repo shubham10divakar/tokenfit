@@ -9,9 +9,32 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-# File types we treat as "context" for a coding agent.
-DEFAULT_GLOBS = ("*.md", "*.py", "*.txt", "*.toml", "*.cfg", "*.yaml", "*.yml")
-SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", "node_modules", ".mypy_cache"}
+# File types we treat as "context" for a coding agent — broad across languages.
+DEFAULT_GLOBS = (
+    # docs
+    "*.md", "*.mdx", "*.rst", "*.txt", "*.adoc",
+    # python
+    "*.py", "*.pyi",
+    # js / ts / web
+    "*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.cjs", "*.vue", "*.svelte",
+    "*.html", "*.css", "*.scss",
+    # systems
+    "*.go", "*.rs", "*.c", "*.h", "*.cpp", "*.hpp", "*.cc", "*.zig",
+    # jvm / .net
+    "*.java", "*.kt", "*.kts", "*.scala", "*.cs",
+    # scripting / other languages
+    "*.rb", "*.php", "*.swift", "*.gd", "*.lua", "*.sh", "*.ps1", "*.dart", "*.ex", "*.exs",
+    # config / data / schema
+    "*.toml", "*.cfg", "*.ini", "*.yaml", "*.yml", "*.json", "*.sql", "*.proto", "*.godot",
+)
+SKIP_DIRS = {
+    ".git", ".venv", "venv", "env", "__pycache__", "node_modules", ".mypy_cache",
+    ".pytest_cache", "dist", "build", ".next", ".nuxt", "target", "bin", "obj",
+    ".idea", ".vscode", "vendor", "coverage", ".gradle",
+}
+# Generated / noisy files that match a glob but add little signal.
+SKIP_FILE_SUFFIXES = ("-lock.json", ".lock", ".min.js", ".min.css", ".map")
+MAX_FILE_BYTES = 500_000  # skip very large (often generated) files
 
 
 @dataclass
@@ -20,23 +43,44 @@ class Document:
     text: str
 
 
+def _skip_file(fp: Path) -> bool:
+    name = fp.name.lower()
+    if name in {"package-lock.json", "yarn.lock", "poetry.lock", "pnpm-lock.yaml"}:
+        return True
+    if any(name.endswith(s) for s in SKIP_FILE_SUFFIXES):
+        return True
+    try:
+        if fp.stat().st_size > MAX_FILE_BYTES:
+            return True
+    except OSError:
+        return True
+    return False
+
+
 def load_corpus(root: str | Path, globs: tuple[str, ...] = DEFAULT_GLOBS) -> list[Document]:
     """Load all matching files under `root` into Documents.
 
-    Priority files (AGENTS.md, SKILL.md) are sorted first so naive truncation
-    keeps them when the budget is tight.
+    Skips vendored/build dirs, lockfiles, and oversized generated files. Priority
+    files (AGENTS.md, SKILL.md) are sorted first so naive truncation keeps them.
     """
     root = Path(root)
     docs: list[Document] = []
+    seen: set[str] = set()  # globs can overlap; dedupe by path
     for pattern in globs:
         for fp in root.rglob(pattern):
+            rel = str(fp.relative_to(root))
+            if rel in seen:
+                continue
             if any(part in SKIP_DIRS for part in fp.parts):
+                continue
+            if _skip_file(fp):
                 continue
             try:
                 text = fp.read_text(encoding="utf-8", errors="replace")
             except (OSError, UnicodeError):
                 continue
-            docs.append(Document(path=str(fp.relative_to(root)), text=text))
+            seen.add(rel)
+            docs.append(Document(path=rel, text=text))
 
     def priority(d: Document) -> int:
         name = Path(d.path).name.lower()

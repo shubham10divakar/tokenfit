@@ -78,6 +78,14 @@ Useful flags: `--budget 8000` (token budget), `--top-k 12` (chunks retrieved),
 `--model Qwen/Qwen2.5-Coder-7B-Instruct` (any HF model), `--rebuild` (re-index).
 Progress prints to stderr, so the answer/context on stdout stays clean for piping.
 
+tokenfit indexes common source + doc file types out of the box (Python, JS/TS, Go,
+Rust, Java, C#, C/C++, Ruby, PHP, Swift, GDScript, shell, plus md/yaml/toml/json…).
+Indexing a different language? Add globs with `--include`:
+
+```bash
+tokenfit ask "How does combat work?" --repo ./my-godot-game --include "*.gd" --rebuild
+```
+
 ## Quickstart (Python)
 
 ```python
