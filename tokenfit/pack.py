@@ -36,6 +36,22 @@ def _persist_dir(repo: Path) -> Path:
     return _CACHE_ROOT / key
 
 
+def ensure_index(repo: str | Path, rebuild: bool = False) -> Path:
+    """Build the per-repo index if missing (or rebuild=True) and return its path.
+
+    Cached under ~/.cache/tokenfit keyed by the repo's absolute path, so it's built
+    once and reused across queries.
+    """
+    repo = Path(repo)
+    persist = _persist_dir(repo)
+    if rebuild or not _index.index_exists(persist):
+        chunks = chunk_documents(load_corpus(repo))
+        if not chunks:
+            raise ValueError(f"No indexable files found under {repo}")
+        _index.build_index(chunks, persist)
+    return persist
+
+
 def build(
     query: str,
     repo: str | Path,
@@ -46,18 +62,9 @@ def build(
 ) -> str:
     """Retrieved context: select the most relevant chunks within the token budget.
 
-    The index is built once per repo and cached under ~/.cache/tokenfit; pass
-    rebuild=True after the repo changes.
+    Pass rebuild=True after the repo changes to refresh the cached index.
     """
-    repo = Path(repo)
     model = model or TokenfitModel()
-    persist = _persist_dir(repo)
-
-    if rebuild or not _index.index_exists(persist):
-        chunks = chunk_documents(load_corpus(repo))
-        if not chunks:
-            return ""
-        _index.build_index(chunks, persist)
-
+    persist = ensure_index(repo, rebuild=rebuild)
     ranked = retrieve(query, persist, top_k=top_k)
     return fit_to_budget(ranked, model, budget)

@@ -52,7 +52,26 @@ export HF_TOKEN=hf_your_token_here      # bash
 $env:HF_TOKEN = "hf_your_token_here"    # PowerShell
 ```
 
-## Quickstart
+## Quickstart (CLI)
+
+The fastest way — no Python required:
+
+```bash
+# Ask a question: tokenfit retrieves the right context AND gets the model's answer
+tokenfit ask "How does the auth flow work?" --repo ./my-project
+
+# Just print the selected context (no model call, pipe it anywhere)
+tokenfit context "auth flow" --repo ./my-project
+
+# Pre-build / refresh the index for a repo
+tokenfit index --repo ./my-project --rebuild
+```
+
+Useful flags: `--budget 8000` (token budget), `--top-k 12` (chunks retrieved),
+`--model Qwen/Qwen2.5-Coder-7B-Instruct` (any HF model), `--rebuild` (re-index).
+Progress prints to stderr, so the answer/context on stdout stays clean for piping.
+
+## Quickstart (Python)
 
 ```python
 from tokenfit import pack
@@ -80,8 +99,8 @@ tokenfit ships with an eval harness that compares **naive truncation** vs **retr
 context** on your own repo — the experiment that proves the approach is worth it:
 
 ```bash
-tokenfit-eval --repo ./my-project --mode naive
-tokenfit-eval --repo ./my-project --mode retrieved
+tokenfit eval --repo ./my-project --mode naive
+tokenfit eval --repo ./my-project --mode retrieved
 ```
 
 Each run writes a graded comparison sheet to `tokenfit/eval/results/`. Score the answers

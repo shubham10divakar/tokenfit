@@ -13,7 +13,7 @@ LONG_DESCRIPTION = (ROOT / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="tokenfit",
-    version="0.1.0",
+    version="0.2.0",
     description="Fit your whole repo into any small model's token window — "
     "context selection for free/small LLMs.",
     long_description=LONG_DESCRIPTION,
@@ -41,6 +41,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
+            "tokenfit=tokenfit.cli:main",
             "tokenfit-eval=tokenfit.eval.harness:main",
         ],
     },

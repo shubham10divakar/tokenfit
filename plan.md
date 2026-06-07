@@ -105,8 +105,13 @@ tests/
   auth query ranks the auth chunk first, budget respected, citations present.
 - **Deviation from plan:** Phase 1 uses a persisted numpy `.npz` store instead of
   Chroma (lighter, no service, fine at single-repo scale). Chroma = Phase 3 swap.
-- **Not yet run:** the live validation (needs `pip install -r requirements.txt`,
-  `HF_TOKEN`, and a real test repo). Embeddings/model not installed in env yet.
+- **2026-06-07 — packaged & shipped.** Renamed to `tokenfit`, added `setup.py` +
+  `pyproject.toml` + MIT license, built wheel/sdist, pushed to GitHub. PyPI name reserved.
+- **2026-06-07 — CLI added (v0.2.0).** `tokenfit` command with subcommands
+  `ask` (context → model → answer), `context` (print context only), `index`, `eval`.
+  Lazy imports so `tokenfit --help` works before heavy deps install. (Phase 3 start.)
+- **Not yet run:** the live validation (needs `pip install`, `HF_TOKEN`, a real test
+  repo). Embeddings/model not installed in env yet.
 
 ---
 
