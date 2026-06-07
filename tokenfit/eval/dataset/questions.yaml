@@ -1,0 +1,18 @@
+# 10 realistic dev questions for the Phase 0 validation experiment.
+# Mix "understanding" questions (need architecture context) with "generate"
+# questions (need conventions/skills context). Edit these to fit YOUR test repo.
+
+questions:
+  # --- understanding (needs architecture context) ---
+  - "How does the authentication flow work in this project, end to end?"
+  - "Where is configuration loaded and how do I add a new config value?"
+  - "What is the overall module structure and how do the main components interact?"
+  - "How does data get from an incoming request to persistence?"
+  - "What error-handling pattern does this codebase follow?"
+
+  # --- generate (needs conventions / skills context) ---
+  - "Add a new API endpoint following this project's existing conventions."
+  - "Write a unit test for the main entry point, matching the existing test style."
+  - "How should I add a new dependency and wire it in, per this project's setup?"
+  - "Refactor a function to follow the logging conventions used here."
+  - "What naming and file-layout conventions should a new module follow?"

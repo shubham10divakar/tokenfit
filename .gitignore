@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# tokenfit
+tokenfit/eval/results/      # generated eval sheets
+.cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Claude Code (personal/local)
+.claude/settings.local.json
