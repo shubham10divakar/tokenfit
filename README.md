@@ -88,6 +88,9 @@ Indexing a different language? Add globs with `--include`:
 tokenfit ask "How does combat work?" --repo ./my-godot-game --include "*.gd" --rebuild
 ```
 
+📂 **See [EXAMPLES.md](./EXAMPLES.md)** for real output — a free 7B model explaining a
+Godot game's movement code, grounded in the actual source.
+
 ## Quickstart (Python)
 
 ```python

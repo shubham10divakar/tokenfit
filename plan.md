@@ -110,8 +110,25 @@ tests/
 - **2026-06-07 — CLI added (v0.2.0).** `tokenfit` command with subcommands
   `ask` (context → model → answer), `context` (print context only), `index`, `eval`.
   Lazy imports so `tokenfit --help` works before heavy deps install. (Phase 3 start.)
-- **Not yet run:** the live validation (needs `pip install`, `HF_TOKEN`, a real test
-  repo). Embeddings/model not installed in env yet.
+- **2026-06-07 — hardening (v0.2.1–0.2.3).** `tokenfit auth` (token check + `--ping`);
+  broadened file-type coverage to ~20 languages + `--include` flag (default globs were
+  Python/markdown-only, so non-Python repos indexed almost nothing); skip vendored/build
+  dirs, lockfiles, oversized files; glob set folded into the cache key; `--version` flag;
+  silenced the Windows symlink warning.
+
+### ✅ First live validation — 2026-06-07 (Godot game repo, free Qwen2.5-Coder-7B)
+- **It works end to end.** A free 7B model gave an accurate, code-grounded answer about
+  the project via one CLI command. See [`EXAMPLES.md`](./EXAMPLES.md) for the full Q&A log.
+- **Best result:** "How does player movement and jumping work?" → cited the real file
+  (`player.gd`) and real symbols (`SPEED`, `JUMP_VELOCITY`, `flip_h`, `move_toward`,
+  input actions, animation gating). 4151 ctx tokens. Genuinely useful, not generic.
+- **Proves:** the pipeline produces high-quality grounded answers on a free model.
+- **Does NOT yet prove:** that retrieval *beats naive truncation*. This repo's code fits
+  inside the 8k budget, so naive would also work. The retrieval advantage only shows on
+  repos **larger than the budget** — that comparison is the next validation step.
+- **Scoping insight:** tokenfit fits **localized** questions ("how does X work / where is
+  Y") well, but not **global/aggregate** ones ("list all unused assets") — those need a
+  whole-project reference graph, a different mechanism (out of scope for the retrieval core).
 
 ---
 
@@ -119,7 +136,8 @@ tests/
 
 - [x] Scaffold project + Phase 0 eval harness
 - [x] Phase 1: implement retrieval (chunk → embed → retrieve → budget), `pack.build` wired
-- [ ] `pip install -r requirements.txt` + set `HF_TOKEN`
-- [ ] Point harness at a real test repo + tailor the 10 questions
-- [ ] Run BOTH modes and compare: `--mode naive` vs `--mode retrieved`
-- [ ] Phase 2: hybrid BM25 + rerank + summarization (only if Phase 0 validates)
+- [x] Package + CLI + hardening (v0.2.3 on GitHub)
+- [x] First live run: free 7B gives accurate grounded answers ([`EXAMPLES.md`](./EXAMPLES.md))
+- [ ] **Differentiator test:** run `--mode naive` vs `--mode retrieved` on a repo
+      *larger than the token budget* (small repos don't reveal retrieval's value)
+- [ ] Phase 2: hybrid BM25 + rerank + summarization (once the differentiator is proven)
