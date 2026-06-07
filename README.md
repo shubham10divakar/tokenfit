@@ -7,7 +7,9 @@ your project's markdown + code, ask a question, and it returns the *most relevan
 of your codebase — packed to fit a tight token budget — so a 7B model with an 8k window
 answers as if it read the whole repo.
 
-[![PyPI](https://img.shields.io/badge/pypi-tokenfit-blue)](https://pypi.org/project/tokenfit/)
+[![PyPI version](https://img.shields.io/pypi/v/tokenfit)](https://pypi.org/project/tokenfit/)
+[![Downloads](https://static.pepy.tech/badge/tokenfit)](https://pepy.tech/project/tokenfit)
+[![Downloads/month](https://img.shields.io/pypi/dm/tokenfit)](https://pypi.org/project/tokenfit/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 
