@@ -79,10 +79,13 @@ def cmd_index(args: argparse.Namespace) -> None:
 
 
 def cmd_eval(args: argparse.Namespace) -> None:
-    from tokenfit.eval.harness import DEFAULT_QUESTIONS, run
+    from tokenfit.eval.harness import DEFAULT_QUESTIONS, run, run_compare
 
     questions = Path(args.questions) if args.questions else DEFAULT_QUESTIONS
-    run(args.repo, args.mode, args.budget, args.model, questions)
+    if args.compare:
+        run_compare(args.repo, args.budget, args.model, questions)
+    else:
+        run(args.repo, args.mode, args.budget, args.model, questions)
 
 
 def cmd_auth(args: argparse.Namespace) -> None:
@@ -170,6 +173,8 @@ def build_parser() -> argparse.ArgumentParser:
     ev = sub.add_parser("eval", help="run the naive-vs-retrieved eval harness")
     ev.add_argument("--repo", required=True, help="path to the test repo")
     ev.add_argument("--mode", choices=["naive", "retrieved"], default="retrieved")
+    ev.add_argument("--compare", action="store_true",
+                    help="run naive AND retrieved into one side-by-side sheet")
     ev.add_argument("--budget", type=int, default=8000)
     ev.add_argument("--model", default=DEFAULT_MODEL)
     ev.add_argument("--questions", default=None, help="path to a questions.yaml")

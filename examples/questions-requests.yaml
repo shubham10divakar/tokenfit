@@ -1,0 +1,20 @@
+# Tailored questions for the `psf/requests` differentiator test.
+#
+# Each answer lives in a SPECIFIC module (sessions.py, adapters.py, auth.py, ...).
+# requests' source + tests are far larger than an 8k budget, so naive truncation must
+# drop most of it — retrieval should still surface the right file. That gap is the test.
+#
+#   git clone --depth 1 https://github.com/psf/requests
+#   tokenfit eval --repo .\requests --compare --questions .\examples\questions-requests.yaml
+
+questions:
+  - "How does connection pooling and session reuse work?"            # sessions.py / adapters.py
+  - "How is authentication handled, including digest auth?"          # auth.py
+  - "How are redirects resolved and followed across requests?"      # sessions.py resolve_redirects
+  - "How does the transport adapter (HTTPAdapter) send a request?"  # adapters.py
+  - "How is a PreparedRequest built from a Request?"                # models.py
+  - "How are cookies extracted from responses and persisted?"       # cookies.py
+  - "How does streaming response content iteration work?"           # models.py iter_content
+  - "How does the event hooks system dispatch hooks?"               # hooks.py
+  - "How are the public api.py functions mapped to Session calls?"  # api.py
+  - "How are the different exception types structured and raised?"  # exceptions.py
