@@ -83,7 +83,7 @@ final prompt → HF model
 tokenfit/
 ├── ingest.py      # ✅ load_corpus + chunk_documents (md-by-header, py-by-def/class)
 ├── index.py       # ✅ bge-small embeddings → persisted numpy .npz store
-├── retrieve.py    # ✅ cosine top-k semantic search  (BM25/rerank = Phase 2)
+├── retrieve.py    # ✅ hybrid semantic + BM25 (RRF fusion)  (rerank = Phase 2 cont.)
 ├── budget.py      # ✅ tokenizer-aware greedy fit + file citations
 ├── pack.py        # ✅ build_naive (baseline) + build (retrieved, cached per repo)
 ├── models.py      # ✅ HF InferenceClient + tokenizer for budgeting
@@ -142,6 +142,24 @@ tests/
 - **v0.2.5:** results now write to `./tokenfit-results/` (was site-packages); silenced
   the long-sequence tokenizer warning.
 
+### Phase 2 started — 2026-06-08 (BM25 hybrid retrieval)
+- `retrieve.py` is now **hybrid**: dense (bge-small cosine) + sparse (BM25) rankings
+  fused with **Reciprocal Rank Fusion** (k=60). Dense catches meaning; BM25 nails exact
+  identifiers (function/var names, error strings) embeddings blur.
+- **Code-aware tokenizer** for BM25: splits camelCase + snake_case so a NL query
+  ("velocity", "toward") matches `JUMP_VELOCITY` / `move_toward`.
+- **Tie-aware ranking** in RRF: tied scores share an averaged rank, so a
+  non-informative ranking contributes equally instead of biasing by array order.
+- BM25 index is process-cached, keyed by the chunks-file mtime (so `--rebuild` isn't
+  served a stale index). Builds lazily from the persisted chunks — no new index files.
+- **Graceful fallback:** if `rank_bm25` is absent, retrieval reverts to Phase-1
+  semantic-only. Promoted `rank-bm25` from the `hybrid` extra to a core dependency.
+- `hybrid=True` is the default on `pack.build` / `retrieve`; pass `hybrid=False` for
+  semantic-only (handy for A/B in the eval harness).
+- New regression test `test_hybrid_bm25_keyword`: with the embedder deliberately blind
+  to a rare identifier, only the keyword path can surface it — **PASSED** (skips if
+  rank_bm25 isn't installed). Existing semantic test still passes.
+
 ---
 
 ## Current status / next action
@@ -152,5 +170,6 @@ tests/
 - [x] First live run: free 7B gives accurate grounded answers ([`EXAMPLES.md`](./EXAMPLES.md))
 - [x] **Differentiator PROVEN:** retrieved beat naive ~9/10 on `psf/requests` (~150k tokens),
       at ~4× fewer tokens. Core thesis validated.
-- [ ] Phase 2: hybrid BM25 + rerank + summarization (now polish, not necessity)
+- [~] Phase 2: **BM25 hybrid done** (RRF fusion, code-aware tokenizer); rerank +
+      summarization fallback still open (now polish, not necessity)
 - [ ] Consider: first PyPI release (badges go live), since the thesis holds

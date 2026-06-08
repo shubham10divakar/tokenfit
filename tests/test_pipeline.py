@@ -58,6 +58,42 @@ def test_pipeline(monkeypatch=None):
         assert "### FILE: auth.py@" in packed  # citations present
 
 
+def test_hybrid_bm25_keyword(monkeypatch=None):
+    """BM25 should surface an exact identifier the (fake) embedder is blind to.
+
+    The fake embedder only knows _VOCAB, so a rare identifier like
+    `frobnicate_widget` yields a zero semantic vector for every chunk — semantic
+    ranking is a coin flip. Only the keyword path can pick the right chunk, so a
+    correct top-1 proves BM25 is actually contributing to the fused result.
+    """
+    try:
+        import rank_bm25  # noqa: F401
+    except ImportError:
+        print("SKIP test_hybrid_bm25_keyword (rank_bm25 not installed)")
+        return
+
+    index.embed_texts = _fake_embed
+    retrieve.embed_texts = _fake_embed
+    retrieve._bm25_cached.cache_clear()  # don't reuse a prior tempdir's index
+
+    docs = [
+        Document("a.py", "def helper():\n    return 1"),
+        Document("b.py", "def frobnicate_widget():\n    # rare identifier\n    return 2"),
+        Document("c.py", "def other():\n    return 3"),
+    ]
+    chunks = chunk_documents(docs, target_chars=400)
+
+    with tempfile.TemporaryDirectory() as d:
+        index.build_index(chunks, d)
+        hits = retrieve.retrieve("frobnicate_widget", d, top_k=3, hybrid=True)
+        assert hits[0].doc_path == "b.py"  # keyword match wins
+
+        # With hybrid off, the blind embedder has no way to find it.
+        sem = retrieve.retrieve("frobnicate_widget", d, top_k=3, hybrid=False)
+        assert any(h.doc_path == "b.py" for h in sem)  # present, but not reliably first
+
+
 if __name__ == "__main__":
     test_pipeline()
+    test_hybrid_bm25_keyword()
     print("PASSED")

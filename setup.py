@@ -37,10 +37,10 @@ setup(
         "sentence-transformers>=3.0.0",
         "numpy>=1.24.0",
         "pyyaml>=6.0",
+        "rank-bm25>=0.2.2",  # Phase 2: hybrid (semantic + keyword) retrieval, default on
     ],
     extras_require={
-        # Phase 2 features (hybrid retrieval / scalable store)
-        "hybrid": ["rank-bm25>=0.2.2"],
+        # Phase 3 swap: scalable vector store
         "chroma": ["chromadb>=0.5.0"],
         "dev": ["pytest>=8.0", "build>=1.2"],
     },

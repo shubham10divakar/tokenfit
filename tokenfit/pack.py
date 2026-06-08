@@ -75,13 +75,15 @@ def build(
     top_k: int = 12,
     rebuild: bool = False,
     globs: tuple[str, ...] = DEFAULT_GLOBS,
+    hybrid: bool = True,
 ) -> str:
     """Retrieved context: select the most relevant chunks within the token budget.
 
     Pass rebuild=True after the repo changes to refresh the cached index, or a
-    custom `globs` tuple to control which file types are ingested.
+    custom `globs` tuple to control which file types are ingested. `hybrid=True`
+    fuses semantic + BM25 keyword search (Phase 2); set False for semantic-only.
     """
     model = model or TokenfitModel()
     persist = ensure_index(repo, rebuild=rebuild, globs=globs)
-    ranked = retrieve(query, persist, top_k=top_k)
+    ranked = retrieve(query, persist, top_k=top_k, hybrid=hybrid)
     return fit_to_budget(ranked, model, budget)
