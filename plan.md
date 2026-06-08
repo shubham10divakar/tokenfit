@@ -162,14 +162,68 @@ tests/
 
 ---
 
+### Local backend — 2026-06-08 (the "actually free" deployment)
+- Realized "free model" ≠ "free inference": HF hosted inference is metered (~$0.10/mo free
+  credit, exhausted by ~2 eval runs → `402`). The genuinely free/unlimited/private path is
+  running the model **locally**.
+- `TokenfitModel` now has a pluggable backend: `hf` (hosted, default) or **`ollama`** (local).
+  Local calls go over stdlib `urllib` to `/api/chat` — no new deps, no token, code never
+  leaves the machine. Select via `--backend`, `TOKENFIT_BACKEND` env, or default.
+- `tokenfit auth` is backend-aware (HF token check, or local server + model-pulled check).
+- Shipped **v1.1.0** (BM25 hybrid) and **v1.2.0** (local backend + README) to GitHub.
+- ⚠️ Not yet verified against a live Ollama install (not installed on dev machine); urllib
+  path is unproven end-to-end. PyPI upload gated on that check.
+
+---
+
 ## Current status / next action
 
 - [x] Scaffold project + Phase 0 eval harness
 - [x] Phase 1: implement retrieval (chunk → embed → retrieve → budget), `pack.build` wired
 - [x] Package + CLI + hardening (v0.2.3 on GitHub)
 - [x] First live run: free 7B gives accurate grounded answers ([`EXAMPLES.md`](./EXAMPLES.md))
-- [x] **Differentiator PROVEN:** retrieved beat naive ~9/10 on `psf/requests` (~150k tokens),
-      at ~4× fewer tokens. Core thesis validated.
+- [x] **Differentiator PROVEN:** retrieved beat naive (6 wins / 3 ties / 0 losses on the
+      latest run) on `psf/requests` (~150k tokens), at ~3× fewer tokens. Core thesis validated.
 - [~] Phase 2: **BM25 hybrid done** (RRF fusion, code-aware tokenizer); rerank +
       summarization fallback still open (now polish, not necessity)
-- [ ] Consider: first PyPI release (badges go live), since the thesis holds
+- [x] **Local Ollama backend** (free/unlimited/offline) — v1.2.0 on GitHub
+- [ ] Verify a live local inference call (`tokenfit auth --backend ollama`), then PyPI release
+
+---
+
+## Enhancement roadmap (next) — agreed 2026-06-08
+
+Five themes, in recommended build order. Goal split: **#1, #3 raise quality; #2, #4 raise
+adoption.** Cross-encoder reranking is explicitly deprioritized until #1 exists to measure it.
+
+### E1 — Free retrieval eval (recall@k)  ◀ do first, unblocks everything
+- Label the gold file(s)/symbol(s) per question; measure whether tokenfit's packed context
+  **contains** them. **No inference → $0, runs in ms.** Lets us tune hybrid/chunking/expansion
+  without burning HF credits. Foundation for iterating on E2–E5.
+- Status: **planned.**
+
+### E2 — Portable context bundle: `tokenfit pack -o context.md` (+ `review`)
+- `tokenfit pack --query/--diff -o context.md` → emit selected context as a self-contained
+  markdown bundle for ANY model (cheap or frontier) or a human. Tiny delta over `context`.
+- `tokenfit review --diff HEAD~1` → diff-as-query; bundle the change + its deps + conventions
+  + related tests. The code-review wedge (rides the Copilot-cost trigger). BYO reasoning model
+  dodges the small-model quality ceiling.
+- Status: **planned** (the product wedge).
+
+### E3 — Dependency-aware retrieval (biggest quality lever for code)
+- After hybrid top-k, **expand the neighborhood**: pull definitions of symbols referenced in
+  retrieved chunks (+ optionally their callers/imports). Needs light tree-sitter parsing.
+- Turns "found the right file" into "found the right file + the things it depends on."
+- Status: **planned.**
+
+### E4 — MCP server (distribution into the agent ecosystem)
+- Expose tokenfit as an MCP tool so Claude/agents call `tokenfit.build_context(query)` instead
+  of crawling a repo with 20 tool calls. Purest form of "pre-processor for agents."
+- Status: **planned.**
+
+### E5 — Trust + real-repo readiness
+- **Citations/faithfulness:** enforce inline `[file:line]` citations so claims are auditable;
+  optional faithfulness check (run on a local model = free). Targets the Q2 fabrication failure.
+- **Incremental indexing:** only re-embed changed files (today `--rebuild` redoes everything).
+- **MMR/diversity** in budget packing so near-duplicate chunks don't eat the budget.
+- Status: **planned** (polish after E1–E4).
