@@ -17,8 +17,9 @@ from pathlib import Path
 
 from tokenfit import __version__
 
-# Duplicated as a literal (not imported from .models) to keep --help dependency-free.
+# Duplicated as literals (not imported from .models) to keep --help dependency-free.
 DEFAULT_MODEL = "Qwen/Qwen2.5-Coder-7B-Instruct"
+DEFAULT_OLLAMA_MODEL = "qwen2.5-coder:7b"
 
 DEFAULT_SYSTEM = (
     "You are a coding assistant for THIS project. Use ONLY the provided project "
@@ -43,9 +44,8 @@ def _globs(args: argparse.Namespace) -> tuple[str, ...]:
 # --- commands -------------------------------------------------------------
 def cmd_context(args: argparse.Namespace) -> None:
     from tokenfit import pack
-    from tokenfit.models import TokenfitModel
 
-    model = TokenfitModel(model=args.model)
+    model = _model(args)
     ctx = pack.build(
         args.query, repo=args.repo, budget=args.budget,
         model=model, top_k=args.top_k, rebuild=args.rebuild, globs=_globs(args),
@@ -56,15 +56,15 @@ def cmd_context(args: argparse.Namespace) -> None:
 
 def cmd_ask(args: argparse.Namespace) -> None:
     from tokenfit import pack
-    from tokenfit.models import TokenfitModel
 
-    model = TokenfitModel(model=args.model)
+    model = _model(args)
     _status(f"building context (budget {args.budget}) from {args.repo} ...")
     ctx = pack.build(
         args.query, repo=args.repo, budget=args.budget,
         model=model, top_k=args.top_k, rebuild=args.rebuild, globs=_globs(args),
     )
-    _status(f"{model.count_tokens(ctx)} ctx tokens; asking {args.model} ...")
+    _status(f"{model.count_tokens(ctx)} ctx tokens; asking {model.model} "
+            f"via {model.backend} ...")
     user = f"PROJECT CONTEXT:\n{ctx}\n\n---\n\nQUESTION: {args.query}"
     print(model.chat(args.system, user, max_new_tokens=args.max_new_tokens))
 
@@ -83,14 +83,26 @@ def cmd_eval(args: argparse.Namespace) -> None:
 
     questions = Path(args.questions) if args.questions else DEFAULT_QUESTIONS
     if args.compare:
-        run_compare(args.repo, args.budget, args.model, questions)
+        run_compare(args.repo, args.budget, args.model, questions,
+                    backend=args.backend, ollama_host=args.ollama_host)
     else:
-        run(args.repo, args.mode, args.budget, args.model, questions)
+        run(args.repo, args.mode, args.budget, args.model, questions,
+            backend=args.backend, ollama_host=args.ollama_host)
 
 
 def cmd_auth(args: argparse.Namespace) -> None:
-    """Check that a HuggingFace token is set and valid before running `ask`/`eval`."""
+    """Verify the chosen backend is ready before running `ask`/`eval`.
+
+    hf     -> check the HuggingFace token is set and valid.
+    ollama -> check the local server is up and the model is pulled.
+    """
     import os
+
+    from tokenfit.models import resolve_backend
+
+    if resolve_backend(args.backend) == "ollama":
+        _auth_ollama(args)
+        return
 
     token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACEHUB_API_TOKEN")
     if not token:
@@ -120,27 +132,72 @@ def cmd_auth(args: argparse.Namespace) -> None:
         _status("identity OK. Re-run with --ping to verify inference access.")
         return
 
-    _status(f"pinging inference on {args.model} ...")
-    from tokenfit.models import TokenfitModel
-
+    model = _model(args)
+    _status(f"pinging inference on {model.model} ...")
     try:
-        TokenfitModel(model=args.model).chat("ping", "Reply with: ok", max_new_tokens=1)
+        model.chat("ping", "Reply with: ok", max_new_tokens=1)
     except Exception as e:
-        _status(f"inference FAILED on {args.model}: {e}")
+        _status(f"inference FAILED on {model.model}: {e}")
         _status('token likely lacks the "Make calls to Inference Providers" permission.')
         sys.exit(1)
-    print(f"inference OK on {args.model}")
+    print(f"inference OK on {model.model}")
+
+
+def _auth_ollama(args: argparse.Namespace) -> None:
+    """Check the local Ollama server is up and the target model is pulled."""
+    from tokenfit.models import DEFAULT_OLLAMA_MODEL, ollama_tags
+
+    host = args.ollama_host or "http://localhost:11434"
+    want = args.model or DEFAULT_OLLAMA_MODEL
+    try:
+        tags = ollama_tags(host)
+    except RuntimeError as e:
+        _status(str(e))
+        sys.exit(1)
+
+    _status(f"Ollama is up at {host} ({len(tags)} model(s) installed)")
+    # Match with or without an explicit ":tag" (ollama lists "name:tag").
+    if want in tags or any(t.split(":")[0] == want.split(":")[0] for t in tags):
+        print(f"ready: '{want}' is available for local inference")
+    else:
+        _status(f"model '{want}' is NOT pulled. Get it with:  ollama pull {want}")
+        if tags:
+            _status(f"installed: {', '.join(tags)}")
+        sys.exit(1)
 
 
 # --- parser ---------------------------------------------------------------
+def _add_model_opts(sp: argparse.ArgumentParser) -> None:
+    """Backend + model selection, shared by commands that call a model."""
+    sp.add_argument("--backend", choices=["hf", "ollama"], default=None,
+                    help="hf = hosted HuggingFace (default); ollama = local & free. "
+                         "Can also be set once via the TOKENFIT_BACKEND env var.")
+    sp.add_argument("--model", default=None,
+                    help=f"model id (default: {DEFAULT_MODEL} for hf, "
+                         f"{DEFAULT_OLLAMA_MODEL} for ollama)")
+    sp.add_argument("--ollama-host", default=None, dest="ollama_host",
+                    help="Ollama base URL (default: http://localhost:11434)")
+
+
+def _model(args: argparse.Namespace):
+    """Build a TokenfitModel from the shared backend/model flags."""
+    from tokenfit.models import TokenfitModel
+
+    return TokenfitModel(
+        model=args.model,
+        backend=getattr(args, "backend", None),
+        ollama_host=getattr(args, "ollama_host", None),
+    )
+
+
 def _add_retrieval_opts(sp: argparse.ArgumentParser) -> None:
     sp.add_argument("--repo", default=".", help="project root (default: current dir)")
     sp.add_argument("--budget", type=int, default=8000, help="context token budget")
     sp.add_argument("--top-k", type=int, default=12, dest="top_k", help="chunks to retrieve")
-    sp.add_argument("--model", default=DEFAULT_MODEL, help="HuggingFace model id")
     sp.add_argument("--rebuild", action="store_true", help="force re-index before running")
     sp.add_argument("--include", nargs="+", metavar="GLOB",
                     help="extra file globs to index, e.g. --include '*.gd' '*.cs'")
+    _add_model_opts(sp)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -176,14 +233,14 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--compare", action="store_true",
                     help="run naive AND retrieved into one side-by-side sheet")
     ev.add_argument("--budget", type=int, default=8000)
-    ev.add_argument("--model", default=DEFAULT_MODEL)
     ev.add_argument("--questions", default=None, help="path to a questions.yaml")
+    _add_model_opts(ev)
     ev.set_defaults(func=cmd_eval)
 
-    au = sub.add_parser("auth", help="check that your HuggingFace token is set and valid")
+    au = sub.add_parser("auth", help="check the chosen backend is ready (hf token / local ollama)")
     au.add_argument("--ping", action="store_true",
-                    help="also make a 1-token inference call to verify inference access")
-    au.add_argument("--model", default=DEFAULT_MODEL, help="model to ping with --ping")
+                    help="(hf) also make a 1-token inference call to verify access")
+    _add_model_opts(au)
     au.set_defaults(func=cmd_auth)
 
     return p

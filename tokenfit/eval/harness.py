@@ -45,8 +45,16 @@ def load_questions(path: Path) -> list[str]:
     return list(data.get("questions", []))
 
 
-def run(repo: str, mode: str, budget: int, model_name: str, questions_path: Path) -> Path:
-    model = TokenfitModel(model=model_name)
+def run(
+    repo: str,
+    mode: str,
+    budget: int,
+    model_name: str | None,
+    questions_path: Path,
+    backend: str | None = None,
+    ollama_host: str | None = None,
+) -> Path:
+    model = TokenfitModel(model=model_name, backend=backend, ollama_host=ollama_host)
     questions = load_questions(questions_path)
     if not questions:
         raise SystemExit(f"No questions found in {questions_path}")
@@ -73,7 +81,7 @@ def run(repo: str, mode: str, budget: int, model_name: str, questions_path: Path
         if mode == "naive":
             context = pack.build_naive(q, repo, model, budget)
         else:
-            context = pack.build(q, repo, budget)  # Phase 1
+            context = pack.build(q, repo, budget, model=model)
 
         user = f"PROJECT CONTEXT:\n{context}\n\n---\n\nQUESTION: {q}"
         ctx_tokens = model.count_tokens(context)
@@ -110,13 +118,20 @@ def _answer(model: TokenfitModel, context: str, question: str) -> str:
         return f"[ERROR calling model: {e}]"
 
 
-def run_compare(repo: str, budget: int, model_name: str, questions_path: Path) -> Path:
+def run_compare(
+    repo: str,
+    budget: int,
+    model_name: str | None,
+    questions_path: Path,
+    backend: str | None = None,
+    ollama_host: str | None = None,
+) -> Path:
     """Run naive AND retrieved for each question into one side-by-side sheet.
 
     This is the differentiator test: on a repo larger than the budget, retrieved
     should stay sharp while naive truncates away the relevant file.
     """
-    model = TokenfitModel(model=model_name)
+    model = TokenfitModel(model=model_name, backend=backend, ollama_host=ollama_host)
     questions = load_questions(questions_path)
     if not questions:
         raise SystemExit(f"No questions found in {questions_path}")
@@ -176,13 +191,19 @@ def main() -> None:
     p.add_argument("--compare", action="store_true",
                    help="run naive AND retrieved into one side-by-side sheet")
     p.add_argument("--budget", type=int, default=8000, help="context token budget")
-    p.add_argument("--model", default=TokenfitModel.model)
+    p.add_argument("--backend", choices=["hf", "ollama"], default=None,
+                   help="hf = hosted (default); ollama = local & free (TOKENFIT_BACKEND env too)")
+    p.add_argument("--model", default=None, help="model id (defaults per backend)")
+    p.add_argument("--ollama-host", default=None, dest="ollama_host",
+                   help="Ollama base URL (default: http://localhost:11434)")
     p.add_argument("--questions", type=Path, default=DEFAULT_QUESTIONS)
     args = p.parse_args()
     if args.compare:
-        run_compare(args.repo, args.budget, args.model, args.questions)
+        run_compare(args.repo, args.budget, args.model, args.questions,
+                    backend=args.backend, ollama_host=args.ollama_host)
     else:
-        run(args.repo, args.mode, args.budget, args.model, args.questions)
+        run(args.repo, args.mode, args.budget, args.model, args.questions,
+            backend=args.backend, ollama_host=args.ollama_host)
 
 
 if __name__ == "__main__":
