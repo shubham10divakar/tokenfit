@@ -34,11 +34,11 @@ query
   ▼
 1. INGEST    load AGENTS.md / SKILL.md / docs / code  →  chunk
 2. INDEX     embed chunks (BAAI/bge-small, local)     →  persist
-3. RETRIEVE  cosine top-k semantic search
+3. RETRIEVE  hybrid semantic + BM25 keyword search (RRF fusion)
 4. BUDGET    tokenizer-aware fit to N tokens + citations
   │
   ▼
-optimal prompt  →  any HuggingFace model
+optimal prompt  →  any model — hosted (HuggingFace) or local (Ollama)
 ```
 
 ## Does it actually beat just dumping the files? Yes.
@@ -69,6 +69,32 @@ and fetches the right module — so it's **both more accurate _and_ ~4× cheaper
 pip install tokenfit
 ```
 
+Then pick a **backend** — where the model actually runs:
+
+| Backend | Cost | Limits | Privacy | Setup |
+|---|---|---|---|---|
+| `ollama` (local) | **free** | **none** | code never leaves your machine | install [Ollama](https://ollama.com) |
+| `hf` (hosted, default) | metered past a small free credit | yes | code sent to HF | one HF token |
+
+### Option A — local & free (recommended)
+
+Run the model on your own machine via [Ollama](https://ollama.com). No token, no usage
+limits, fully offline:
+
+```bash
+ollama pull qwen2.5-coder:7b            # one-time: get the model
+tokenfit auth --backend ollama          # verifies the server is up + model is pulled
+```
+
+Set it once and forget the flag:
+
+```bash
+export TOKENFIT_BACKEND=ollama          # bash
+$env:TOKENFIT_BACKEND = "ollama"        # PowerShell
+```
+
+### Option B — hosted HuggingFace
+
 Set a HuggingFace token with **"Make calls to Inference Providers"** permission:
 
 ```bash
@@ -82,6 +108,9 @@ Verify it before you run anything:
 tokenfit auth            # checks the token is set and valid
 tokenfit auth --ping     # also makes a 1-token call to confirm inference access
 ```
+
+> ⚠️ Hosted inference is metered — the free tier is only ~$0.10/month of credits, so a
+> couple of full eval runs can exhaust it. For unlimited use, prefer the local backend.
 
 ## Quickstart (CLI)
 
@@ -98,9 +127,10 @@ tokenfit context "auth flow" --repo ./my-project
 tokenfit index --repo ./my-project --rebuild
 ```
 
-Useful flags: `--budget 8000` (token budget), `--top-k 12` (chunks retrieved),
-`--model Qwen/Qwen2.5-Coder-7B-Instruct` (any HF model), `--rebuild` (re-index).
-Progress prints to stderr, so the answer/context on stdout stays clean for piping.
+Useful flags: `--backend ollama` (run locally / free) or `--backend hf` (hosted),
+`--budget 8000` (token budget), `--top-k 12` (chunks retrieved), `--model <id>` (any HF
+or Ollama model), `--rebuild` (re-index). Progress prints to stderr, so the
+answer/context on stdout stays clean for piping.
 
 tokenfit indexes common source + doc file types out of the box (Python, JS/TS, Go,
 Rust, Java, C#, C/C++, Ruby, PHP, Swift, GDScript, shell, plus md/yaml/toml/json…).
@@ -126,8 +156,8 @@ context = pack.build(
     budget=8000,
 )
 
-# Feed it to any small HF model
-model = TokenfitModel(model="Qwen/Qwen2.5-Coder-7B-Instruct")
+# Feed it to any small model — hosted HF (default) or local Ollama
+model = TokenfitModel(backend="ollama")  # local & free; or backend="hf"
 answer = model.chat(
     system="You are a coding assistant for THIS project. Use only the provided context.",
     user=f"{context}\n\nQUESTION: How does the auth flow work?",
@@ -141,18 +171,19 @@ tokenfit ships with an eval harness that compares **naive truncation** vs **retr
 context** on your own repo — the experiment that proves the approach is worth it:
 
 ```bash
-tokenfit eval --repo ./my-project --mode naive
-tokenfit eval --repo ./my-project --mode retrieved
+tokenfit eval --repo ./my-project --compare                  # naive vs retrieved, side by side
+tokenfit eval --repo ./my-project --compare --backend ollama # run it free & local
 ```
 
-Each run writes a graded comparison sheet to `tokenfit/eval/results/`. Score the answers
+Each run writes a graded comparison sheet to `./tokenfit-results/`. Score the answers
 1–5 and compare. Edit `tokenfit/eval/dataset/questions.yaml` to fit your project.
 
 ## Roadmap
 
 - [x] **Phase 0** — eval harness + naive baseline
 - [x] **Phase 1** — semantic retrieval (chunk → embed → retrieve → budget)
-- [ ] **Phase 2** — hybrid BM25 + rerank + summarization for oversized chunks
+- [x] **Local backend** — run on a free local model via Ollama (no token, no limits)
+- [~] **Phase 2** — hybrid BM25 ✅ (RRF fusion); rerank + summarization for oversized chunks (next)
 - [ ] **Phase 3** — `tiny-agents` / `smolagents` adapters, optional Chroma backend
 
 See [`idea.md`](./idea.md) for the rationale and [`plan.md`](./plan.md) for the full plan.
